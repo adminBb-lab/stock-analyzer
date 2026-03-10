@@ -1,4 +1,9 @@
+import os
 import streamlit as st
+
+# 设置efinance数据目录为当前目录，避免权限问题
+os.environ['EFINANCE_DATA_DIR'] = '.'
+
 import efinance as ef
 import pandas as pd
 import matplotlib
