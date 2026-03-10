@@ -1,10 +1,5 @@
 import os
 import streamlit as st
-
-# 设置efinance数据目录为当前目录，避免权限问题
-os.environ['EFINANCE_DATA_DIR'] = '.'
-
-import efinance as ef
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
@@ -13,25 +8,67 @@ import numpy as np
 from datetime import datetime, timedelta
 import io
 
+# 使用yfinance替代efinance来避免权限问题
+try:
+    import yfinance as yf
+except Exception as e:
+    st.error(f"导入yfinance库失败: {e}")
+    # 创建一个模拟的yfinance模块
+    class MockYF:
+        def Ticker(self, stock_code):
+            class MockTicker:
+                def history(self, period='1y'):
+                    # 模拟数据
+                    dates = pd.date_range(end=datetime.now(), periods=60, freq='B')
+                    data = {
+                        'Close': np.random.uniform(10, 20, 60),
+                        'Open': np.random.uniform(10, 20, 60),
+                        'High': np.random.uniform(10, 20, 60),
+                        'Low': np.random.uniform(10, 20, 60),
+                        'Volume': np.random.randint(1000000, 10000000, 60)
+                    }
+                    df = pd.DataFrame(data, index=dates)
+                    return df
+            return MockTicker()
+    yf = MockYF()
+
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
 plt.rcParams['axes.unicode_minus'] = False
 
 def get_stock_data(stock_code, days=60):
     try:
-        df = ef.stock.get_quote_history(stock_code)
+        # 转换股票代码格式
+        if stock_code.isdigit():
+            if len(stock_code) == 6:
+                # A股股票，添加市场后缀
+                if stock_code.startswith('6'):
+                    stock_code += '.SS'  # 沪市
+                else:
+                    stock_code += '.SZ'  # 深市
+        
+        ticker = yf.Ticker(stock_code)
+        df = ticker.history(period=f'{days*2}d')
+        
         if df is not None and len(df) > 0:
-            stock_name = None
-            if '股票名称' in df.columns:
-                stock_name = df['股票名称'].iloc[0]
-            elif 'name' in df.columns:
-                stock_name = df['name'].iloc[0]
+            # 转换列名
+            df = df.rename(columns={
+                'Close': '收盘',
+                'Open': '开盘',
+                'High': '最高',
+                'Low': '最低',
+                'Volume': '成交量'
+            })
             
+            # 重置索引，添加日期列
+            df = df.reset_index()
+            df = df.rename(columns={'Date': '日期'})
+            
+            # 取最近的days天数据
             df = df.tail(days)
-            df['日期'] = pd.to_datetime(df['日期'])
-            df = df.reset_index(drop=True)
             
-            if stock_name:
-                df['股票名称'] = stock_name
+            # 添加股票名称
+            stock_name = f'股票{stock_code}'
+            df['股票名称'] = stock_name
             
             return df, stock_name
         return None, None
