@@ -143,6 +143,10 @@ def identify_signals(df_stats):
     return signals, trend_type
 
 def plot_5day_trend(df, df_stats, signals, trend_type, stock_code, stock_name):
+    # 确保使用中文字体
+    plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+    plt.rcParams['axes.unicode_minus'] = False
+    
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [3, 1]})
     
     dates = df_stats['日期']
@@ -153,13 +157,31 @@ def plot_5day_trend(df, df_stats, signals, trend_type, stock_code, stock_name):
     ax1.fill_between(x, cumulative_change, 0, where=(cumulative_change >= 0), color='red', alpha=0.3)
     ax1.fill_between(x, cumulative_change, 0, where=(cumulative_change < 0), color='green', alpha=0.3)
     
+    # 为买点添加标注
     for idx in signals['buy']:
-        if idx < len(x):
+        if idx < len(x) and idx + 4 < len(df):
             ax1.scatter(x[idx], cumulative_change.iloc[idx], color='red', s=100, marker='^', zorder=5, label='买点')
+            # 添加价格和日期标注
+            buy_date = dates.iloc[idx].strftime('%Y-%m-%d')
+            buy_price = df['收盘'].iloc[idx + 4]
+            ax1.annotate(f'买\n{buy_date}\n{buy_price:.2f}', 
+                        (x[idx], cumulative_change.iloc[idx]),
+                        textcoords="offset points", xytext=(0, 15),
+                        ha='center', fontsize=8, color='red',
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="red", alpha=0.7))
     
+    # 为卖点添加标注
     for idx in signals['sell']:
-        if idx < len(x):
+        if idx < len(x) and idx + 4 < len(df):
             ax1.scatter(x[idx], cumulative_change.iloc[idx], color='green', s=100, marker='v', zorder=5, label='卖点')
+            # 添加价格和日期标注
+            sell_date = dates.iloc[idx].strftime('%Y-%m-%d')
+            sell_price = df['收盘'].iloc[idx + 4]
+            ax1.annotate(f'卖\n{sell_date}\n{sell_price:.2f}', 
+                        (x[idx], cumulative_change.iloc[idx]),
+                        textcoords="offset points", xytext=(0, -25),
+                        ha='center', fontsize=8, color='green',
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="green", alpha=0.7))
     
     ax1.axhline(y=0, color='black', linestyle='-', linewidth=1, alpha=0.5)
     ax1.grid(True, alpha=0.3, linestyle='--')
@@ -170,7 +192,11 @@ def plot_5day_trend(df, df_stats, signals, trend_type, stock_code, stock_name):
         title = f'{stock_code} 5天周期累计涨跌幅趋势'
     ax1.set_title(title, fontsize=14, fontweight='bold')
     ax1.set_ylabel('累计涨跌幅 (%)', fontsize=11)
-    ax1.legend(loc='upper right', fontsize=9)
+    
+    # 移除重复的图例
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    ax1.legend(by_label.values(), by_label.keys(), loc='upper right', fontsize=9)
     
     price_data = df['收盘'].iloc[4:].reset_index(drop=True)
     price_ma5 = price_data.rolling(window=5).mean()
