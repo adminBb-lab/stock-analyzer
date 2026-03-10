@@ -262,7 +262,7 @@ if analyze_btn:
                 with col1:
                     st.metric("平均累计涨跌幅", f"{avg_change:.2f}%")
                 with col2:
-                    st.metric("最大累计涨跌幅",:.2f}% f"{max_change")
+                    st.metric("最大累计涨跌幅", f"{max_change:.2f}%")
                 with col3:
                     st.metric("最小累计涨跌幅", f"{min_change:.2f}%")
                 with col4:
